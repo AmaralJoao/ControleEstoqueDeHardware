@@ -1,0 +1,32 @@
+# Arquivos gerados pelo CLion
+.idea/
+cmake-build-*/
+*.user
+
+# Arquivos de compilação e execução
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.out
+
+# Arquivos gerados pelo CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Arquivos de dados do programa (se não quiser versionar)
+inventario.txt
+
+# Arquivos temporários
+*~
+*.swp
+*.swo
+
+# Diretórios de build
+build/
