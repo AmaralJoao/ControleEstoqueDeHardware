@@ -15,7 +15,7 @@
 using namespace std;
 using namespace std::chrono;
 
-// Enum para tipos de hardware
+// Enum para tipos de hardware (computador, impressora, etc)
 enum class TipoHardware {
     COMPUTADOR,
     IMPRESSORA,
@@ -25,12 +25,13 @@ enum class TipoHardware {
     OUTRO
 };
 
-// Estrutura para representar uma data
+// Estrutura para representar uma data com dia, mês e ano
 struct Data {
     int dia;
     int mes;
     int ano;
 
+    // Converte a data para string no formato DD/MM/AAAA
     string to_string() const {
         ostringstream oss;
         oss << setfill('0') << setw(2) << dia << "/" 
@@ -38,6 +39,7 @@ struct Data {
         return oss.str();
     }
 
+    // Cria uma Data a partir de uma string no formato DD/MM/AAAA
     static Data from_string(const string& str) {
         Data d;
         char sep;
@@ -49,6 +51,7 @@ struct Data {
         return d;
     }
 
+    // Sobrecarga do operador < para comparar datas
     bool operator<(const Data& outra) const {
         if (ano != outra.ano) return ano < outra.ano;
         if (mes != outra.mes) return mes < outra.mes;
@@ -56,7 +59,7 @@ struct Data {
     }
 };
 
-// Função para obter a data atual do sistema
+// Obtém a data atual do sistema
 Data obter_data_atual() {
     time_t agora = time(nullptr);
     tm* tempo_local = localtime(&agora);
@@ -69,7 +72,7 @@ Data obter_data_atual() {
     return atual;
 }
 
-// Estrutura para representar um equipamento de hardware
+// Estrutura que representa um equipamento de hardware
 struct Hardware {
     int id;
     string nome;
@@ -81,6 +84,7 @@ struct Hardware {
     Data ultimaManutencao;
     bool obsoleto;
 
+    // Converte o tipo de hardware para string
     string tipo_to_string() const {
         switch(tipo) {
             case TipoHardware::COMPUTADOR: return "COMPUTADOR";
@@ -92,6 +96,7 @@ struct Hardware {
         }
     }
 
+    // Converte string para o tipo de hardware
     static TipoHardware string_to_tipo(const string& str) {
         if (str == "COMPUTADOR") return TipoHardware::COMPUTADOR;
         if (str == "IMPRESSORA") return TipoHardware::IMPRESSORA;
@@ -101,6 +106,7 @@ struct Hardware {
         return TipoHardware::OUTRO;
     }
 
+    // Converte o hardware para formato CSV
     string to_csv() const {
         ostringstream oss;
         oss << id << ";"
@@ -115,6 +121,7 @@ struct Hardware {
         return oss.str();
     }
 
+    // Cria um Hardware a partir de uma linha CSV
     static Hardware from_csv(const string& linha) {
         vector<string> campos;
         string campo;
@@ -146,6 +153,7 @@ struct Hardware {
         return hw;
     }
 
+    // Converte o hardware para string formatada
     string to_string() const {
         ostringstream oss;
         oss << "ID: " << id << " | " << nome << " (" << fabricante << ") | "
@@ -158,7 +166,7 @@ struct Hardware {
     }
 };
 
-// Nó para lista encadeada
+// Nó para lista encadeada (armazena um Hardware e ponteiro para o próximo)
 struct Node {
     Hardware data;
     Node* next;
@@ -166,13 +174,14 @@ struct Node {
     Node(const Hardware& hw) : data(hw), next(nullptr) {}
 };
 
-// Implementação de lista encadeada
+// Implementação de lista encadeada para armazenar os hardwares
 class LinkedList {
 private:
     Node* head;
     Node* tail;
     int size;
 
+    // Troca dois nós de posição na lista
     void swap_nodes(Node* prev_a, Node* a, Node* prev_b, Node* b) {
         if (a == b) return;
         
@@ -200,6 +209,7 @@ public:
         clear();
     }
 
+    // Adiciona um novo hardware no final da lista
     void push_back(const Hardware& hw) {
         Node* newNode = new Node(hw);
         if (!head) {
@@ -211,6 +221,7 @@ public:
         size++;
     }
 
+    // Limpa a lista, liberando toda a memória
     void clear() {
         Node* current = head;
         while (current) {
@@ -225,7 +236,7 @@ public:
     Node* get_head() const { return head; }
     int get_size() const { return size; }
 
-    // Algoritmo de ordenação Bubble Sort
+    // Ordena a lista usando o algoritmo Bubble Sort
     void bubble_sort(function<bool(const Hardware&, const Hardware&)> compare) {
         if (size < 2) return;
         
@@ -249,7 +260,7 @@ public:
         } while (swapped);
     }
 
-    // Algoritmo de ordenação Insertion Sort
+    // Ordena a lista usando o algoritmo Insertion Sort
     void insertion_sort(function<bool(const Hardware&, const Hardware&)> compare) {
         if (size < 2) return;
         
@@ -281,13 +292,14 @@ public:
     }
 };
 
-// Sistema de inventário com lista encadeada
+// Sistema principal de inventário que gerencia os hardwares
 class SistemaInventario {
 private:
     LinkedList inventario;
     int proximoId = 1;
     const string arquivoDados = "inventario.csv";
 
+    // Mede o tempo de execução de uma operação
     template<typename Func>
     void medir_tempo(const string& nome_operacao, Func func) {
         auto inicio = high_resolution_clock::now();
@@ -298,6 +310,7 @@ private:
              << duracao.count() << " ms\n";
     }
 
+    // Mede o tempo de execução de uma operação com retorno
     template<typename Func, typename... Args>
     auto medir_tempo_com_retorno(const string& nome_operacao, Func func, Args... args) {
         auto inicio = high_resolution_clock::now();
@@ -309,7 +322,7 @@ private:
         return resultado;
     }
 
-    // Método adicionado para copiar a lista
+    // Cria uma cópia da lista atual
     LinkedList copiar_lista() const {
         LinkedList nova_lista;
         Node* current = inventario.get_head();
@@ -339,6 +352,7 @@ public:
         salvar_dados();
     }
 
+    // Carrega os dados do arquivo CSV para a lista
     void carregar_dados() {
         ifstream arquivo(arquivoDados);
         if (!arquivo) {
@@ -364,6 +378,7 @@ public:
         cout << "Dados carregados com sucesso. " << contador << " itens encontrados.\n";
     }
 
+    // Salva os dados da lista no arquivo CSV
     void salvar_dados() {
         ofstream arquivo(arquivoDados);
         if (!arquivo) {
@@ -384,6 +399,7 @@ public:
         cout << "Dados salvos com sucesso (" << contador << " itens) no arquivo " << arquivoDados << "\n";
     }
 
+    // Cadastra um novo hardware no sistema
     void cadastrar_hardware(const string& nome, const string& fabricante, TipoHardware tipo,
                            const Data& dataCompra, double valorCompra, int vidaUtilAnos) {
         medir_tempo("Cadastrar Hardware", [&]() {
@@ -410,6 +426,7 @@ public:
         });
     }
 
+    // Registra uma manutenção para um hardware específico
     bool registrar_manutencao(int id, const Data& dataManutencao) {
         return medir_tempo_com_retorno("Registrar Manutenção", [&]() {
             Node* current = inventario.get_head();
@@ -424,6 +441,7 @@ public:
         });
     }
 
+    // Lista todos os equipamentos cadastrados
     void listar_equipamentos() {
         medir_tempo("Listar Equipamentos", [&]() {
             cout << "=== LISTA DE EQUIPAMENTOS (" << inventario.get_size() << ") ===\n";
@@ -435,6 +453,7 @@ public:
         });
     }
 
+    // Lista equipamentos filtrados por tipo
     void listar_por_tipo(TipoHardware tipo) {
         medir_tempo("Listar por Tipo", [&]() {
             cout << "=== EQUIPAMENTOS POR TIPO (" << Hardware().tipo_to_string() << ") ===\n";
@@ -451,6 +470,7 @@ public:
         });
     }
 
+    // Lista equipamentos ordenados por data de compra
     void listar_por_data_compra() {
         medir_tempo("Listar por Data de Compra", [&]() {
             LinkedList temp = copiar_lista(); // Usando o novo método de cópia
@@ -469,6 +489,7 @@ public:
         });
     }
 
+    // Lista equipamentos ordenados por data de manutenção
     void listar_por_data_manutencao() {
         medir_tempo("Listar por Data de Manutenção", [&]() {
             LinkedList temp = copiar_lista(); // Usando o novo método de cópia
@@ -487,6 +508,7 @@ public:
         });
     }
 
+    // Calcula a depreciação de um hardware até uma data específica
     double calcular_depreciacao(const Hardware& hw, const Data& hoje) const {
         int anos = hoje.ano - hw.dataCompra.ano;
         if (hoje.mes < hw.dataCompra.mes || (hoje.mes == hw.dataCompra.mes && hoje.dia < hw.dataCompra.dia)) {
@@ -499,6 +521,7 @@ public:
         return (hw.valorCompra / hw.vidaUtilAnos) * anos;
     }
 
+    // Mostra análise de depreciação de todos os equipamentos
     void mostrar_analise_depreciacao(const Data& hoje) {
         medir_tempo("Análise de Depreciação", [&]() {
             cout << "=== ANÁLISE DE DEPRECIAÇÃO (Data base: " << hoje.to_string() << ") ===\n";
@@ -526,6 +549,7 @@ public:
         });
     }
 
+    // Atualiza o status de obsolescência dos equipamentos
     void atualizar_status_obsoleto(const Data& hoje) {
         Node* current = inventario.get_head();
         while (current) {
@@ -539,6 +563,7 @@ public:
         }
     }
 
+    // Identifica e lista equipamentos obsoletos
     void identificar_obsoletos(const Data& hoje) {
         medir_tempo("Identificar Obsoletos", [&]() {
             atualizar_status_obsoleto(hoje);
@@ -558,6 +583,7 @@ public:
         });
     }
 
+    // Gera relatório de equipamentos com manutenção pendente
     void relatorio_manutencao_pendente(const Data& hoje, int mesesLimite) {
         medir_tempo("Relatório Manutenção Pendente", [&]() {
             cout << "=== EQUIPAMENTOS COM MANUTENÇÃO PENDENTE (> " << mesesLimite 
@@ -584,7 +610,7 @@ public:
     }
 };
 
-// Funções de interface
+// Função para selecionar o tipo de hardware no menu
 TipoHardware selecionar_tipo() {
     cout << "\nSelecione o tipo de hardware:\n";
     cout << "1 - Computador\n2 - Impressora\n3 - Servidor\n";
@@ -613,6 +639,7 @@ TipoHardware selecionar_tipo() {
     }
 }
 
+// Função para ler uma data do usuário
 Data ler_data(const string& mensagem) {
     Data d;
     cout << mensagem << " (DD/MM/AAAA): ";
@@ -631,6 +658,7 @@ Data ler_data(const string& mensagem) {
     return d;
 }
 
+// Menu principal do sistema
 void menu_principal() {
     SistemaInventario sistema;
     Data hoje = obter_data_atual();  // Usando a nova função para obter data atual
@@ -755,6 +783,7 @@ void menu_principal() {
     } while (opcao != 0);
 }
 
+// Função principal que inicia o sistema
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
