@@ -1,798 +1,919 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <chrono>
-#include <iomanip>
-#include <ctime>
-#include <cstring>
-#include <algorithm>
-#include <limits>
-#include <sstream>
-#include <functional>
-#include <vector> 
-#include <windows.h>
-
-using namespace std;
-using namespace std::chrono;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <math.h>
 
 // Enum para tipos de hardware (computador, impressora, etc)
-enum class TipoHardware {
+typedef enum {
     COMPUTADOR,
     IMPRESSORA,
     SERVIDOR,
     ROTEADOR,
     SWITCH,
     OUTRO
-};
+} TipoHardware;
 
 // Estrutura para representar uma data com dia, mês e ano
-struct Data {
+typedef struct {
     int dia;
     int mes;
     int ano;
-
-    // Converte a data para string no formato DD/MM/AAAA
-    string to_string() const {
-        ostringstream oss;
-        oss << setfill('0') << setw(2) << dia << "/" 
-            << setw(2) << mes << "/" << setw(4) << ano;
-        return oss.str();
-    }
-
-    // Cria uma Data a partir de uma string no formato DD/MM/AAAA
-    static Data from_string(const string& str) {
-        Data d;
-        char sep;
-        istringstream iss(str);
-        iss >> d.dia >> sep >> d.mes >> sep >> d.ano;
-        if (iss.fail() || sep != '/') {
-            throw runtime_error("Formato de data inválido");
-        }
-        return d;
-    }
-
-    // Sobrecarga do operador < para comparar datas
-    bool operator<(const Data& outra) const {
-        if (ano != outra.ano) return ano < outra.ano;
-        if (mes != outra.mes) return mes < outra.mes;
-        return dia < outra.dia;
-    }
-};
-
-// Obtém a data atual do sistema
-Data obter_data_atual() {
-    time_t agora = time(nullptr);
-    tm* tempo_local = localtime(&agora);
-    
-    Data atual;
-    atual.dia = tempo_local->tm_mday;
-    atual.mes = tempo_local->tm_mon + 1; // tm_mon vai de 0-11
-    atual.ano = tempo_local->tm_year + 1900; // tm_year é anos desde 1900
-    
-    return atual;
-}
+} Data;
 
 // Estrutura que representa um equipamento de hardware
-struct Hardware {
+// NOME E FABRICANTE AGORA SÃO ARRAYS DE TAMANHO FIXO PARA SIMPLIFICAR O GERENCIAMENTO DE MEMÓRIA
+typedef struct {
     int id;
-    string nome;
-    string fabricante;
+    char nome[100];         // Buffer de 100 caracteres para o nome
+    char fabricante[100];   // Buffer de 100 caracteres para o fabricante
     TipoHardware tipo;
     Data dataCompra;
     double valorCompra;
     int vidaUtilAnos;
     Data ultimaManutencao;
     bool obsoleto;
-
-    // Converte o tipo de hardware para string
-    string tipo_to_string() const {
-        switch(tipo) {
-            case TipoHardware::COMPUTADOR: return "COMPUTADOR";
-            case TipoHardware::IMPRESSORA: return "IMPRESSORA";
-            case TipoHardware::SERVIDOR: return "SERVIDOR";
-            case TipoHardware::ROTEADOR: return "ROTEADOR";
-            case TipoHardware::SWITCH: return "SWITCH";
-            default: return "OUTRO";
-        }
-    }
-
-    // Converte string para o tipo de hardware
-    static TipoHardware string_to_tipo(const string& str) {
-        if (str == "COMPUTADOR") return TipoHardware::COMPUTADOR;
-        if (str == "IMPRESSORA") return TipoHardware::IMPRESSORA;
-        if (str == "SERVIDOR") return TipoHardware::SERVIDOR;
-        if (str == "ROTEADOR") return TipoHardware::ROTEADOR;
-        if (str == "SWITCH") return TipoHardware::SWITCH;
-        return TipoHardware::OUTRO;
-    }
-
-    // Converte o hardware para formato CSV
-    string to_csv() const {
-        ostringstream oss;
-        oss << id << ";"
-            << nome << ";"
-            << fabricante << ";"
-            << tipo_to_string() << ";"
-            << dataCompra.to_string() << ";"
-            << fixed << setprecision(2) << valorCompra << ";"
-            << vidaUtilAnos << ";"
-            << ultimaManutencao.to_string() << ";"
-            << (obsoleto ? "1" : "0");
-        return oss.str();
-    }
-
-    // Cria um Hardware a partir de uma linha CSV
-    static Hardware from_csv(const string& linha) {
-        vector<string> campos;
-        string campo;
-        istringstream iss(linha);
-        
-        while (getline(iss, campo, ';')) {
-            campos.push_back(campo);
-        }
-
-        if (campos.size() != 9) {
-            throw runtime_error("Formato de linha inválido");
-        }
-
-        Hardware hw;
-        try {
-            hw.id = stoi(campos[0]);
-            hw.nome = campos[1];
-            hw.fabricante = campos[2];
-            hw.tipo = string_to_tipo(campos[3]);
-            hw.dataCompra = Data::from_string(campos[4]);
-            hw.valorCompra = stod(campos[5]);
-            hw.vidaUtilAnos = stoi(campos[6]);
-            hw.ultimaManutencao = Data::from_string(campos[7]);
-            hw.obsoleto = (campos[8] == "1");
-        } catch (const exception& e) {
-            throw runtime_error("Erro ao converter dados: " + string(e.what()));
-        }
-
-        return hw;
-    }
-
-    // Converte o hardware para string formatada
-    string to_string() const {
-        ostringstream oss;
-        oss << "ID: " << id << " | " << nome << " (" << fabricante << ") | "
-            << "Tipo: " << tipo_to_string() << " | Compra: " << dataCompra.to_string() << " | "
-            << "Última manutenção: " << ultimaManutencao.to_string() << " | "
-            << "Valor: R$" << fixed << setprecision(2) << valorCompra << " | "
-            << "Vida útil: " << vidaUtilAnos << " anos | "
-            << (obsoleto ? "OBSOLETO" : "Ativo");
-        return oss.str();
-    }
-};
+} Hardware;
 
 // Nó para lista encadeada (armazena um Hardware e ponteiro para o próximo)
-struct Node {
+typedef struct Node {
     Hardware data;
-    Node* next;
-    
-    Node(const Hardware& hw) : data(hw), next(nullptr) {}
-};
+    struct Node* next;
+} Node;
 
-// Implementação de lista encadeada para armazenar os hardwares
-class LinkedList {
-private:
+// Estrutura para lista encadeada
+typedef struct {
     Node* head;
     Node* tail;
     int size;
+} LinkedList;
 
-    // Troca dois nós de posição na lista
-    void swap_nodes(Node* prev_a, Node* a, Node* prev_b, Node* b) {
-        if (a == b) return;
-        
-        // Atualiza os ponteiros next dos nós vizinhos
-        if (prev_a) prev_a->next = b;
-        else head = b;
-        
-        if (prev_b) prev_b->next = a;
-        else head = a;
-        
-        // Atualiza os ponteiros next dos nós trocados
-        Node* temp = a->next;
-        a->next = b->next;
-        b->next = temp;
-        
-        // Atualiza tail se necessário
-        if (tail == a) tail = b;
-        else if (tail == b) tail = a;
-    }
-
-public:
-    LinkedList() : head(nullptr), tail(nullptr), size(0) {}
-    
-    ~LinkedList() {
-        clear();
-    }
-
-    // Adiciona um novo hardware no final da lista
-    void push_back(const Hardware& hw) {
-        Node* newNode = new Node(hw);
-        if (!head) {
-            head = tail = newNode;
-        } else {
-            tail->next = newNode;
-            tail = newNode;
-        }
-        size++;
-    }
-
-    // Limpa a lista, liberando toda a memória
-    void clear() {
-        Node* current = head;
-        while (current) {
-            Node* next = current->next;
-            delete current;
-            current = next;
-        }
-        head = tail = nullptr;
-        size = 0;
-    }
-
-    Node* get_head() const { return head; }
-    int get_size() const { return size; }
-
-    // Ordena a lista usando o algoritmo Bubble Sort
-    void bubble_sort(function<bool(const Hardware&, const Hardware&)> compare) {
-        if (size < 2) return;
-        
-        bool swapped;
-        Node *current, *prev = nullptr;
-        
-        do {
-            swapped = false;
-            current = head;
-            prev = nullptr;
-            
-            while (current->next) {
-                if (!compare(current->data, current->next->data)) {
-                    swap_nodes(prev, current, current, current->next);
-                    swapped = true;
-                } else {
-                    prev = current;
-                    current = current->next;
-                }
-            }
-        } while (swapped);
-    }
-
-    // Ordena a lista usando o algoritmo Insertion Sort
-    void insertion_sort(function<bool(const Hardware&, const Hardware&)> compare) {
-        if (size < 2) return;
-        
-        Node* sorted = nullptr;
-        Node* current = head;
-        
-        while (current) {
-            Node* next = current->next;
-            
-            if (!sorted || compare(current->data, sorted->data)) {
-                current->next = sorted;
-                sorted = current;
-            } else {
-                Node* temp = sorted;
-                while (temp->next && !compare(current->data, temp->next->data)) {
-                    temp = temp->next;
-                }
-                current->next = temp->next;
-                temp->next = current;
-            }
-            
-            current = next;
-        }
-        
-        head = sorted;
-        // Atualiza tail
-        tail = sorted;
-        while (tail && tail->next) tail = tail->next;
-    }
-};
-
-// Sistema principal de inventário que gerencia os hardwares
-class SistemaInventario {
-private:
+// Sistema principal de inventário
+typedef struct {
     LinkedList inventario;
-    int proximoId = 1;
-    const string arquivoDados = "inventario.csv";
+    int proximoId;
+    const char* arquivoDados;
+} SistemaInventario;
 
-    // Mede o tempo de execução de uma operação
-    template<typename Func>
-    void medir_tempo(const string& nome_operacao, Func func) {
-        auto inicio = high_resolution_clock::now();
-        func();
-        auto fim = high_resolution_clock::now();
-        auto duracao = duration_cast<milliseconds>(fim - inicio);
-        cout << "Operação '" << nome_operacao << "' concluída em " 
-             << duracao.count() << " ms\n";
+// Protótipos de funções
+Data obter_data_atual();
+char* data_to_string(const Data* data);
+bool data_from_string(const char* str, Data* data);
+bool data_menor_que(const Data* a, const Data* b);
+char* tipo_to_string(TipoHardware tipo);
+TipoHardware string_to_tipo(const char* str);
+char* hardware_to_csv(const Hardware* hw);
+bool hardware_from_csv(const char* linha, Hardware* hw);
+char* hardware_to_string(const Hardware* hw);
+void linkedlist_init(LinkedList* list);
+void linkedlist_clear(LinkedList* list);
+void linkedlist_push_back(LinkedList* list, const Hardware* hw);
+Node* linkedlist_get_head(const LinkedList* list);
+int linkedlist_get_size(const LinkedList* list);
+
+// Funções de comparação para ordenação
+bool compare_data_compra(const Hardware* a, const Hardware* b);
+bool compare_data_manutencao(const Hardware* a, const Hardware* b);
+
+void linkedlist_bubble_sort(LinkedList* list, bool (*compare)(const Hardware*, const Hardware*));
+void linkedlist_insertion_sort(LinkedList* list, bool (*compare)(const Hardware*, const Hardware*));
+void sistema_init(SistemaInventario* sistema);
+void sistema_destroy(SistemaInventario* sistema);
+void sistema_carregar_dados(SistemaInventario* sistema);
+void sistema_salvar_dados(SistemaInventario* sistema);
+bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, const char* fabricante, 
+                               TipoHardware tipo, const Data* dataCompra, double valorCompra, 
+                               int vidaUtilAnos);
+bool sistema_registrar_manutencao(SistemaInventario* sistema, int id, const Data* dataManutencao);
+void sistema_listar_equipamentos(SistemaInventario* sistema);
+void sistema_listar_por_tipo(SistemaInventario* sistema, TipoHardware tipo);
+void sistema_listar_por_data_compra(SistemaInventario* sistema);
+void sistema_listar_por_data_manutencao(SistemaInventario* sistema);
+double calcular_depreciacao(const Hardware* hw, const Data* hoje);
+void sistema_mostrar_analise_depreciacao(SistemaInventario* sistema, const Data* hoje);
+void sistema_atualizar_status_obsoleto(SistemaInventario* sistema, const Data* hoje);
+void sistema_identificar_obsoletos(SistemaInventario* sistema, const Data* hoje);
+void sistema_relatorio_manutencao_pendente(SistemaInventario* sistema, const Data* hoje, int mesesLimite);
+TipoHardware selecionar_tipo();
+bool ler_data(const char* mensagem, Data* data);
+void menu_principal();
+void limpar_buffer_entrada();
+
+// Implementação das funções
+
+Data obter_data_atual() {
+    time_t agora = time(NULL);
+    struct tm* tempo_local = localtime(&agora);
+    
+    Data atual;
+    atual.dia = tempo_local->tm_mday;
+    atual.mes = tempo_local->tm_mon + 1;
+    atual.ano = tempo_local->tm_year + 1900;
+    
+    return atual;
+}
+
+char* data_to_string(const Data* data) {
+    // Aloca memória para a string da data (DD/MM/YYYY + \0)
+    char* str = malloc(11); 
+    if (str) {
+        sprintf(str, "%02d/%02d/%04d", data->dia, data->mes, data->ano);
     }
+    return str;
+}
 
-    // Mede o tempo de execução de uma operação com retorno
-    template<typename Func, typename... Args>
-    auto medir_tempo_com_retorno(const string& nome_operacao, Func func, Args... args) {
-        auto inicio = high_resolution_clock::now();
-        auto resultado = func(args...);
-        auto fim = high_resolution_clock::now();
-        auto duracao = duration_cast<milliseconds>(fim - inicio);
-        cout << "Operação '" << nome_operacao << "' concluída em " 
-             << duracao.count() << " ms\n";
-        return resultado;
+bool data_from_string(const char* str, Data* data) {
+    char sep1, sep2;
+    // Tenta ler a data no formato DD/MM/AAAA. Retorna true se 5 itens foram lidos e os separadores são '/'.
+    return sscanf(str, "%d%c%d%c%d", &data->dia, &sep1, &data->mes, &sep2, &data->ano) == 5 && sep1 == '/' && sep2 == '/';
+}
+
+bool data_menor_que(const Data* a, const Data* b) {
+    if (a->ano != b->ano) return a->ano < b->ano;
+    if (a->mes != b->mes) return a->mes < b->mes;
+    return a->dia < b->dia;
+}
+
+char* tipo_to_string(TipoHardware tipo) {
+    switch(tipo) {
+        case COMPUTADOR: return "COMPUTADOR";
+        case IMPRESSORA: return "IMPRESSORA";
+        case SERVIDOR: return "SERVIDOR";
+        case ROTEADOR: return "ROTEADOR";
+        case SWITCH: return "SWITCH";
+        default: return "OUTRO";
     }
+}
 
-    // Cria uma cópia da lista atual
-    LinkedList copiar_lista() const {
-        LinkedList nova_lista;
-        Node* current = inventario.get_head();
-        while (current) {
-            nova_lista.push_back(current->data);
-            current = current->next;
+TipoHardware string_to_tipo(const char* str) {
+    if (strcmp(str, "COMPUTADOR") == 0) return COMPUTADOR;
+    if (strcmp(str, "IMPRESSORA") == 0) return IMPRESSORA;
+    if (strcmp(str, "SERVIDOR") == 0) return SERVIDOR;
+    if (strcmp(str, "ROTEADOR") == 0) return ROTEADOR;
+    if (strcmp(str, "SWITCH") == 0) return SWITCH;
+    return OUTRO;
+}
+
+char* hardware_to_csv(const Hardware* hw) {
+    char* dataCompraStr = data_to_string(&hw->dataCompra);
+    char* ultimaManutencaoStr = data_to_string(&hw->ultimaManutencao);
+    
+    // Calcula o tamanho necessário do buffer
+    // Usa snprintf com NULL e 0 para obter o tamanho da string formatada
+    int size = snprintf(NULL, 0, "%d;%s;%s;%s;%s;%.2f;%d;%s;%d",
+                        hw->id, hw->nome, hw->fabricante, tipo_to_string(hw->tipo),
+                        dataCompraStr, hw->valorCompra, hw->vidaUtilAnos,
+                        ultimaManutencaoStr, hw->obsoleto ? 1 : 0);
+    
+    char* csv = malloc(size + 1); // Aloca o buffer com o tamanho calculado + 1 para o terminador null
+    if (csv) {
+        // Formata a string CSV
+        sprintf(csv, "%d;%s;%s;%s;%s;%.2f;%d;%s;%d",
+                hw->id, hw->nome, hw->fabricante, tipo_to_string(hw->tipo),
+                dataCompraStr, hw->valorCompra, hw->vidaUtilAnos,
+                ultimaManutencaoStr, hw->obsoleto ? 1 : 0);
+    }
+    
+    free(dataCompraStr);
+    free(ultimaManutencaoStr);
+    return csv;
+}
+
+bool hardware_from_csv(const char* linha, Hardware* hw) {
+    char linha_copy[1024]; // Buffer para a cópia da linha
+    // Garante que a linha não exceda o tamanho do buffer
+    strncpy(linha_copy, linha, sizeof(linha_copy) - 1);
+    linha_copy[sizeof(linha_copy) - 1] = '\0'; // Garante terminação nula
+
+    char* current_ptr = linha_copy;
+    char* token_start = linha_copy;
+    int i = 0;
+    
+    // Arrays temporários para armazenar ponteiros para os campos
+    char* temp_campos[9]; 
+
+    while (*current_ptr != '\0' && i < 9) {
+        if (*current_ptr == ';') {
+            *current_ptr = '\0'; // Termina o token atual
+            temp_campos[i++] = token_start;
+            token_start = current_ptr + 1; // Inicia o próximo token após o delimitador
         }
-        return nova_lista;
+        current_ptr++;
     }
+    // Adiciona o último token (ou o único token se não houver delimitadores)
+    if (i < 9) {
+        temp_campos[i++] = token_start;
+    }
+    
+    if (i != 9) {
+        // fprintf(stderr, "Erro ao parsear linha CSV: número incorreto de campos (%d em vez de 9) - %s\n", i, linha);
+        return false;
+    }
+    
+    hw->id = atoi(temp_campos[0]);
+    // Copia o nome e fabricante para os arrays fixos
+    strncpy(hw->nome, temp_campos[1], sizeof(hw->nome) - 1);
+    hw->nome[sizeof(hw->nome) - 1] = '\0'; // Garante terminação nula
+    
+    strncpy(hw->fabricante, temp_campos[2], sizeof(hw->fabricante) - 1);
+    hw->fabricante[sizeof(hw->fabricante) - 1] = '\0'; // Garante terminação nula
 
-public:
-    SistemaInventario() {
-        carregar_dados();
-        // Atualiza o próximo ID disponível
-        int max_id = 0;
-        Node* current = inventario.get_head();
-        while (current) {
-            if (current->data.id > max_id) {
-                max_id = current->data.id;
+    hw->tipo = string_to_tipo(temp_campos[3]);
+    
+    if (!data_from_string(temp_campos[4], &hw->dataCompra)) {
+        return false;
+    }
+    
+    hw->valorCompra = atof(temp_campos[5]);
+    hw->vidaUtilAnos = atoi(temp_campos[6]);
+    
+    if (!data_from_string(temp_campos[7], &hw->ultimaManutencao)) {
+        return false;
+    }
+    
+    // Compara o campo com "1" ou "1\n" para lidar com possíveis quebras de linha
+    hw->obsoleto = (strcmp(temp_campos[8], "1") == 0 || strcmp(temp_campos[8], "1\n") == 0); 
+    
+    return true;
+}
+
+char* hardware_to_string(const Hardware* hw) {
+    char* dataCompraStr = data_to_string(&hw->dataCompra);
+    char* ultimaManutencaoStr = data_to_string(&hw->ultimaManutencao);
+    
+    // Calcula o tamanho necessário do buffer
+    int size = snprintf(NULL, 0, "ID: %d | %s (%s) | Tipo: %s | Compra: %s | Última manutenção: %s | Valor: R$%.2f | Vida útil: %d anos | %s",
+                        hw->id, hw->nome, hw->fabricante, tipo_to_string(hw->tipo),
+                        dataCompraStr, ultimaManutencaoStr, hw->valorCompra,
+                        hw->vidaUtilAnos, hw->obsoleto ? "OBSOLETO" : "Ativo");
+    
+    char* str = malloc(size + 1);
+    if (str) {
+        // Formata a string de exibição
+        sprintf(str, "ID: %d | %s (%s) | Tipo: %s | Compra: %s | Última manutenção: %s | Valor: R$%.2f | Vida útil: %d anos | %s",
+                hw->id, hw->nome, hw->fabricante, tipo_to_string(hw->tipo),
+                dataCompraStr, ultimaManutencaoStr, hw->valorCompra,
+                hw->vidaUtilAnos, hw->obsoleto ? "OBSOLETO" : "Ativo");
+    }
+    
+    free(dataCompraStr);
+    free(ultimaManutencaoStr);
+    return str;
+}
+
+void linkedlist_init(LinkedList* list) {
+    list->head = NULL;
+    list->tail = NULL;
+    list->size = 0;
+}
+
+void linkedlist_clear(LinkedList* list) {
+    Node* current = list->head;
+    while (current != NULL) {
+        Node* next = current->next;
+        // Não é mais necessário liberar nome e fabricante, pois são arrays fixos na struct
+        free(current);
+        current = next;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+    list->size = 0;
+}
+
+void linkedlist_push_back(LinkedList* list, const Hardware* hw) {
+    Node* newNode = malloc(sizeof(Node));
+    if (!newNode) return;
+    
+    newNode->data.id = hw->id;
+    // Copia os dados da struct Hardware, incluindo nome e fabricante (agora arrays fixos)
+    strncpy(newNode->data.nome, hw->nome, sizeof(newNode->data.nome) - 1);
+    newNode->data.nome[sizeof(newNode->data.nome) - 1] = '\0';
+    
+    strncpy(newNode->data.fabricante, hw->fabricante, sizeof(newNode->data.fabricante) - 1);
+    newNode->data.fabricante[sizeof(newNode->data.fabricante) - 1] = '\0';
+
+    newNode->data.tipo = hw->tipo;
+    newNode->data.dataCompra = hw->dataCompra;
+    newNode->data.valorCompra = hw->valorCompra;
+    newNode->data.vidaUtilAnos = hw->vidaUtilAnos;
+    newNode->data.ultimaManutencao = hw->ultimaManutencao;
+    newNode->data.obsoleto = hw->obsoleto;
+    newNode->next = NULL;
+    
+    if (list->tail == NULL) {
+        list->head = list->tail = newNode;
+    } else {
+        list->tail->next = newNode;
+        list->tail = newNode;
+    }
+    list->size++;
+}
+
+Node* linkedlist_get_head(const LinkedList* list) {
+    return list->head;
+}
+
+int linkedlist_get_size(const LinkedList* list) {
+    return list->size;
+}
+
+// Funções de comparação para ordenação
+bool compare_data_compra(const Hardware* a, const Hardware* b) {
+    return data_menor_que(&a->dataCompra, &b->dataCompra);
+}
+
+bool compare_data_manutencao(const Hardware* a, const Hardware* b) {
+    return data_menor_que(&a->ultimaManutencao, &b->ultimaManutencao);
+}
+
+// Funções de ordenação que agora copiam as structs Hardware de forma segura
+// (pois nome e fabricante são arrays fixos, fazendo a cópia ser "profunda" para eles)
+void linkedlist_bubble_sort(LinkedList* list, bool (*compare)(const Hardware*, const Hardware*)) {
+    if (list->size < 2) return;
+    
+    bool swapped;
+    Node *current;
+    
+    // Implementação de bubble sort otimizada para linked list, trocando dados
+    // Esta abordagem é segura agora que Hardware não contém ponteiros para strings alocadas dinamicamente
+    do {
+        swapped = false;
+        current = list->head;
+        
+        while (current != NULL && current->next != NULL) {
+            if (compare(&current->next->data, &current->data)) { // Se o próximo for "menor" que o atual, troca
+                Hardware temp = current->data;
+                current->data = current->next->data;
+                current->next->data = temp;
+                swapped = true;
             }
             current = current->next;
         }
-        proximoId = max_id + 1;
-    }
+    } while (swapped);
+}
 
-    ~SistemaInventario() {
-        salvar_dados();
-    }
-
-    // Carrega os dados do arquivo CSV para a lista
-    void carregar_dados() {
-        ifstream arquivo(arquivoDados);
-        if (!arquivo) {
-            cout << "Arquivo de dados não encontrado. Criando novo inventário.\n";
-            return;
-        }
-
-        cout << "Carregando dados do arquivo...\n";
-        string linha;
-        getline(arquivo, linha); // Pula cabeçalho
-
-        int contador = 0;
-        while (getline(arquivo, linha)) {
-            if (linha.empty()) continue;
-            try {
-                Hardware hw = Hardware::from_csv(linha);
-                inventario.push_back(hw);
-                contador++;
-            } catch (const exception& e) {
-                cerr << "Erro ao carregar linha: " << linha << " - " << e.what() << "\n";
+void linkedlist_insertion_sort(LinkedList* list, bool (*compare)(const Hardware*, const Hardware*)) {
+    if (list->size < 2) return;
+    
+    Node* sorted = NULL;
+    Node* current = list->head;
+    
+    // Implementação de insertion sort para linked list, trocando dados
+    // Esta abordagem é segura agora que Hardware não contém ponteiros para strings alocadas dinamicamente
+    while (current != NULL) {
+        Node* next = current->next; // Salva o próximo antes de modificar current->next
+        
+        if (sorted == NULL || compare(&current->data, &sorted->data)) {
+            // Insere no início da lista ordenada
+            current->next = sorted;
+            sorted = current;
+        } else {
+            // Procura o local de inserção na lista ordenada
+            Node* temp = sorted;
+            while (temp->next != NULL && compare(&temp->next->data, &current->data)) {
+                temp = temp->next;
             }
+            current->next = temp->next;
+            temp->next = current;
         }
-        cout << "Dados carregados com sucesso. " << contador << " itens encontrados.\n";
+        current = next;
+    }
+    
+    list->head = sorted;
+    // Atualiza o tail após a ordenação
+    list->tail = sorted;
+    while (list->tail != NULL && list->tail->next != NULL) {
+        list->tail = list->tail->next;
+    }
+}
+
+
+void sistema_init(SistemaInventario* sistema) {
+    linkedlist_init(&sistema->inventario);
+    sistema->proximoId = 1;
+    sistema->arquivoDados = "inventario.csv"; // Nome do arquivo de dados
+    sistema_carregar_dados(sistema);
+    
+    // Encontra o próximo ID disponível (o maior ID + 1)
+    int max_id = 0;
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        if (current->data.id > max_id) {
+            max_id = current->data.id;
+        }
+        current = current->next;
+    }
+    sistema->proximoId = max_id + 1;
+}
+
+void sistema_destroy(SistemaInventario* sistema) {
+    sistema_salvar_dados(sistema); // Salva os dados antes de destruir
+    linkedlist_clear(&sistema->inventario); // Libera a memória da lista
+}
+
+void sistema_carregar_dados(SistemaInventario* sistema) {
+    FILE* arquivo = fopen(sistema->arquivoDados, "r");
+    if (!arquivo) {
+        printf("Arquivo de dados '%s' não encontrado. Criando novo inventário.\n", sistema->arquivoDados);
+        return;
     }
 
-    // Salva os dados da lista no arquivo CSV
-    void salvar_dados() {
-        ofstream arquivo(arquivoDados);
-        if (!arquivo) {
-            cerr << "Erro ao abrir arquivo para salvar dados!\n";
-            return;
+    printf("Carregando dados do arquivo '%s'...\n", sistema->arquivoDados);
+    char linha[1024]; // Buffer para ler cada linha do arquivo
+    
+    // Lê a linha do cabeçalho e a ignora
+    if (fgets(linha, sizeof(linha), arquivo) == NULL) {
+        fclose(arquivo);
+        printf("Arquivo de dados vazio ou com erro.\n");
+        return;
+    }
+
+    int contador = 0;
+    // Loop para ler cada linha do arquivo até o fim
+    while (fgets(linha, sizeof(linha), arquivo) != NULL) {
+        // Remove a nova linha se estiver presente
+        linha[strcspn(linha, "\n")] = '\0'; 
+        if (linha[0] == '\0') continue; // Ignora linhas em branco
+        
+        Hardware hw;
+        // Tenta parsear a linha CSV para uma struct Hardware
+        if (hardware_from_csv(linha, &hw)) {
+            linkedlist_push_back(&sistema->inventario, &hw); // Adiciona na lista encadeada
+            contador++;
+        } else {
+            fprintf(stderr, "Erro ao carregar linha (formato inválido): %s\n", linha);
         }
+    }
+    fclose(arquivo);
+    printf("Dados carregados com sucesso. %d itens encontrados.\n", contador);
+}
 
-        // Escreve cabeçalho
-        arquivo << "ID;Nome;Fabricante;Tipo;DataCompra;Valor;VidaUtil;UltimaManutencao;Obsoleto\n";
+void sistema_salvar_dados(SistemaInventario* sistema) {
+    FILE* arquivo = fopen(sistema->arquivoDados, "w"); // Abre o arquivo para escrita (sobrescreve se existir)
+    if (!arquivo) {
+        fprintf(stderr, "Erro ao abrir arquivo para salvar dados: %s\n", sistema->arquivoDados);
+        return;
+    }
 
-        int contador = 0;
-        Node* current = inventario.get_head();
-        while (current) {
-            arquivo << current->data.to_csv() << "\n";
-            current = current->next;
+    // Escreve o cabeçalho no arquivo CSV
+    fprintf(arquivo, "ID;Nome;Fabricante;Tipo;DataCompra;Valor;VidaUtil;UltimaManutencao;Obsoleto\n");
+
+    int contador = 0;
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        char* csv = hardware_to_csv(&current->data); // Converte a struct Hardware para string CSV
+        if (csv) {
+            fprintf(arquivo, "%s\n", csv); // Escreve a linha CSV no arquivo
+            free(csv); // Libera a memória alocada por hardware_to_csv
+        }
+        current = current->next;
+        contador++;
+    }
+    fclose(arquivo);
+    printf("Dados salvos com sucesso (%d itens) no arquivo %s\n", contador, sistema->arquivoDados);
+}
+
+bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, const char* fabricante, 
+                               TipoHardware tipo, const Data* dataCompra, double valorCompra, 
+                               int vidaUtilAnos) {
+    if (nome == NULL || fabricante == NULL || strlen(nome) == 0 || strlen(fabricante) == 0) {
+        fprintf(stderr, "Nome e fabricante não podem estar vazios.\n");
+        return false;
+    }
+    if (valorCompra <= 0 || vidaUtilAnos <= 0) {
+        fprintf(stderr, "Valor e vida útil devem ser positivos.\n");
+        return false;
+    }
+
+    Hardware hw;
+    hw.id = sistema->proximoId++; // Atribui um novo ID e incrementa
+    // Copia as strings para os buffers da struct, garantindo que não excedam o tamanho
+    strncpy(hw.nome, nome, sizeof(hw.nome) - 1);
+    hw.nome[sizeof(hw.nome) - 1] = '\0'; // Garante terminação nula
+    
+    strncpy(hw.fabricante, fabricante, sizeof(hw.fabricante) - 1);
+    hw.fabricante[sizeof(hw.fabricante) - 1] = '\0'; // Garante terminação nula
+    
+    hw.tipo = tipo;
+    hw.dataCompra = *dataCompra;
+    hw.valorCompra = valorCompra;
+    hw.vidaUtilAnos = vidaUtilAnos;
+    hw.ultimaManutencao = *dataCompra; // Inicialmente, última manutenção é a data de compra
+    hw.obsoleto = false;
+
+    linkedlist_push_back(&sistema->inventario, &hw); // Adiciona o novo hardware à lista
+    printf("Hardware cadastrado com ID: %d\n", hw.id);
+    return true;
+}
+
+bool sistema_registrar_manutencao(SistemaInventario* sistema, int id, const Data* dataManutencao) {
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        if (current->data.id == id) { // Encontra o equipamento pelo ID
+            current->data.ultimaManutencao = *dataManutencao; // Atualiza a data de manutenção
+            return true;
+        }
+        current = current->next;
+    }
+    return false; // Equipamento não encontrado
+}
+
+void sistema_listar_equipamentos(SistemaInventario* sistema) {
+    printf("=== LISTA DE EQUIPAMENTOS (%d) ===\n", sistema->inventario.size);
+    if (sistema->inventario.size == 0) {
+        printf("Nenhum equipamento cadastrado.\n");
+        return;
+    }
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        char* str = hardware_to_string(&current->data); // Converte Hardware para string formatada
+        if (str) {
+            printf("%s\n", str);
+            free(str); // Libera a memória alocada por hardware_to_string
+        }
+        current = current->next;
+    }
+}
+
+void sistema_listar_por_tipo(SistemaInventario* sistema, TipoHardware tipo) {
+    printf("=== EQUIPAMENTOS POR TIPO (%s) ===\n", tipo_to_string(tipo));
+    int contador = 0;
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        if (current->data.tipo == tipo) { // Filtra pelo tipo de hardware
+            char* str = hardware_to_string(&current->data);
+            if (str) {
+                printf("%s\n", str);
+                free(str);
+            }
             contador++;
         }
-        cout << "Dados salvos com sucesso (" << contador << " itens) no arquivo " << arquivoDados << "\n";
+        current = current->next;
     }
+    printf("Total encontrado: %d equipamentos\n", contador);
+}
 
-    // Cadastra um novo hardware no sistema
-    void cadastrar_hardware(const string& nome, const string& fabricante, TipoHardware tipo,
-                           const Data& dataCompra, double valorCompra, int vidaUtilAnos) {
-        medir_tempo("Cadastrar Hardware", [&]() {
-            if (nome.empty() || fabricante.empty()) {
-                throw invalid_argument("Nome e fabricante não podem estar vazios");
-            }
-            if (valorCompra <= 0 || vidaUtilAnos <= 0) {
-                throw invalid_argument("Valor e vida útil devem ser positivos");
-            }
-
-            Hardware hw;
-            hw.id = proximoId++;
-            hw.nome = nome;
-            hw.fabricante = fabricante;
-            hw.tipo = tipo;
-            hw.dataCompra = dataCompra;
-            hw.valorCompra = valorCompra;
-            hw.vidaUtilAnos = vidaUtilAnos;
-            hw.ultimaManutencao = dataCompra;
-            hw.obsoleto = false;
-
-            inventario.push_back(hw);
-            cout << "Hardware cadastrado com ID: " << hw.id << "\n";
-        });
+void sistema_listar_por_data_compra(SistemaInventario* sistema) {
+    LinkedList temp;
+    linkedlist_init(&temp);
+    
+    // Copia os equipamentos para uma lista temporária para ordenação
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        linkedlist_push_back(&temp, &current->data);
+        current = current->next;
     }
-
-    // Registra uma manutenção para um hardware específico
-    bool registrar_manutencao(int id, const Data& dataManutencao) {
-        return medir_tempo_com_retorno("Registrar Manutenção", [&]() {
-            Node* current = inventario.get_head();
-            while (current) {
-                if (current->data.id == id) {
-                    current->data.ultimaManutencao = dataManutencao;
-                    return true;
-                }
-                current = current->next;
-            }
-            return false;
-        });
+    
+    // Ordena a lista temporária pela data de compra usando Insertion Sort
+    linkedlist_insertion_sort(&temp, compare_data_compra);
+    
+    printf("=== EQUIPAMENTOS ORDENADOS POR DATA DE COMPRA ===\n");
+    if (temp.size == 0) {
+        printf("Nenhum equipamento para listar.\n");
     }
-
-    // Lista todos os equipamentos cadastrados
-    void listar_equipamentos() {
-        medir_tempo("Listar Equipamentos", [&]() {
-            cout << "=== LISTA DE EQUIPAMENTOS (" << inventario.get_size() << ") ===\n";
-            Node* current = inventario.get_head();
-            while (current) {
-                cout << current->data.to_string() << "\n";
-                current = current->next;
-            }
-        });
+    current = temp.head;
+    while (current != NULL) {
+        char* str = hardware_to_string(&current->data);
+        if (str) {
+            printf("%s\n", str);
+            free(str);
+        }
+        current = current->next;
     }
+    
+    linkedlist_clear(&temp); // Libera a memória da lista temporária
+}
 
-    // Lista equipamentos filtrados por tipo
-    void listar_por_tipo(TipoHardware tipo) {
-        medir_tempo("Listar por Tipo", [&]() {
-            cout << "=== EQUIPAMENTOS POR TIPO (" << Hardware().tipo_to_string() << ") ===\n";
-            int contador = 0;
-            Node* current = inventario.get_head();
-            while (current) {
-                if (current->data.tipo == tipo) {
-                    cout << current->data.to_string() << "\n";
-                    contador++;
-                }
-                current = current->next;
-            }
-            cout << "Total encontrado: " << contador << " equipamentos\n";
-        });
+void sistema_listar_por_data_manutencao(SistemaInventario* sistema) {
+    LinkedList temp;
+    linkedlist_init(&temp);
+    
+    // Copia os equipamentos para uma lista temporária para ordenação
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        linkedlist_push_back(&temp, &current->data);
+        current = current->next;
     }
-
-    // Lista equipamentos ordenados por data de compra
-    void listar_por_data_compra() {
-        medir_tempo("Listar por Data de Compra", [&]() {
-            LinkedList temp = copiar_lista(); // Usando o novo método de cópia
-            
-            // Usa insertion sort para ordenar por data de compra
-            temp.insertion_sort([](const Hardware& a, const Hardware& b) {
-                return a.dataCompra < b.dataCompra;
-            });
-            
-            cout << "=== EQUIPAMENTOS ORDENADOS POR DATA DE COMPRA ===\n";
-            Node* current = temp.get_head();
-            while (current) {
-                cout << current->data.to_string() << "\n";
-                current = current->next;
-            }
-        });
+    
+    // Ordena a lista temporária pela data da última manutenção usando Bubble Sort
+    linkedlist_bubble_sort(&temp, compare_data_manutencao);
+    
+    printf("=== EQUIPAMENTOS ORDENADOS POR DATA DE MANUTENÇÃO ===\n");
+    if (temp.size == 0) {
+        printf("Nenhum equipamento para listar.\n");
     }
-
-    // Lista equipamentos ordenados por data de manutenção
-    void listar_por_data_manutencao() {
-        medir_tempo("Listar por Data de Manutenção", [&]() {
-            LinkedList temp = copiar_lista(); // Usando o novo método de cópia
-            
-            // Usa bubble sort para ordenar por data de manutenção
-            temp.bubble_sort([](const Hardware& a, const Hardware& b) {
-                return a.ultimaManutencao < b.ultimaManutencao;
-            });
-            
-            cout << "=== EQUIPAMENTOS ORDENADOS POR DATA DE MANUTENÇÃO ===\n";
-            Node* current = temp.get_head();
-            while (current) {
-                cout << current->data.to_string() << "\n";
-                current = current->next;
-            }
-        });
+    current = temp.head;
+    while (current != NULL) {
+        char* str = hardware_to_string(&current->data);
+        if (str) {
+            printf("%s\n", str);
+            free(str);
+        }
+        current = current->next;
     }
+    
+    linkedlist_clear(&temp); // Libera a memória da lista temporária
+}
 
-    // Calcula a depreciação de um hardware até uma data específica
-    double calcular_depreciacao(const Hardware& hw, const Data& hoje) const {
-        int anos = hoje.ano - hw.dataCompra.ano;
-        if (hoje.mes < hw.dataCompra.mes || (hoje.mes == hw.dataCompra.mes && hoje.dia < hw.dataCompra.dia)) {
+double calcular_depreciacao(const Hardware* hw, const Data* hoje) {
+    // Calcula a diferença de anos entre a data de hoje e a data de compra
+    int anos = hoje->ano - hw->dataCompra.ano;
+    if (hoje->mes < hw->dataCompra.mes || (hoje->mes == hw->dataCompra.mes && hoje->dia < hw->dataCompra.dia)) {
+        anos--; // Ajusta se o aniversário de compra ainda não ocorreu no ano atual
+    }
+    
+    if (anos <= 0) return 0.0; // Não há depreciação se o equipamento for novo ou muito recente
+    if (anos >= hw->vidaUtilAnos) return hw->valorCompra; // Depreciação total se excedeu a vida útil
+    
+    // Cálculo linear da depreciação
+    return (hw->valorCompra / hw->vidaUtilAnos) * anos;
+}
+
+void sistema_mostrar_analise_depreciacao(SistemaInventario* sistema, const Data* hoje) {
+    char* hojeStr = data_to_string(hoje);
+    printf("=== ANÁLISE DE DEPRECIAÇÃO (Data base: %s) ===\n", hojeStr ? hojeStr : "ERRO");
+    if (hojeStr) free(hojeStr); // Libera a string da data
+
+    if (sistema->inventario.size == 0) {
+        printf("Nenhum equipamento para analisar.\n");
+        return;
+    }
+    
+    double total_original = 0, total_depreciado = 0;
+    
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        double depreciacao = calcular_depreciacao(&current->data, hoje);
+        double valorAtual = current->data.valorCompra - depreciacao;
+        
+        printf("ID: %d | %s | Valor original: R$%.2f | Depreciação: R$%.2f | Valor atual: R$%.2f\n",
+               current->data.id, current->data.nome, current->data.valorCompra,
+               depreciacao, valorAtual);
+        
+        total_original += current->data.valorCompra;
+        total_depreciado += depreciacao;
+        current = current->next;
+    }
+    
+    printf("----------------------------------------------------------------\n");
+    printf("TOTAL | Valor original: R$%.2f | Depreciação total: R$%.2f | Valor atual total: R$%.2f\n",
+           total_original, total_depreciado, (total_original - total_depreciado));
+}
+
+void sistema_atualizar_status_obsoleto(SistemaInventario* sistema, const Data* hoje) {
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        // Calcula a idade do equipamento em anos
+        int anos = hoje->ano - current->data.dataCompra.ano;
+        if (hoje->mes < current->data.dataCompra.mes || 
+            (hoje->mes == current->data.dataCompra.mes && hoje->dia < current->data.dataCompra.dia)) {
             anos--;
         }
-        
-        if (anos <= 0) return 0.0;
-        if (anos >= hw.vidaUtilAnos) return hw.valorCompra;
-        
-        return (hw.valorCompra / hw.vidaUtilAnos) * anos;
+        // Atualiza o status de obsoleto
+        current->data.obsoleto = (anos >= current->data.vidaUtilAnos);
+        current = current->next;
     }
+}
 
-    // Mostra análise de depreciação de todos os equipamentos
-    void mostrar_analise_depreciacao(const Data& hoje) {
-        medir_tempo("Análise de Depreciação", [&]() {
-            cout << "=== ANÁLISE DE DEPRECIAÇÃO (Data base: " << hoje.to_string() << ") ===\n";
-            double total_original = 0, total_depreciado = 0;
-            
-            Node* current = inventario.get_head();
-            while (current) {
-                double depreciacao = calcular_depreciacao(current->data, hoje);
-                double valorAtual = current->data.valorCompra - depreciacao;
-                
-                cout << "ID: " << current->data.id << " | " << current->data.nome 
-                     << " | Valor original: R$" << fixed << setprecision(2) << current->data.valorCompra
-                     << " | Depreciação: R$" << depreciacao
-                     << " | Valor atual: R$" << valorAtual << "\n";
-                
-                total_original += current->data.valorCompra;
-                total_depreciado += depreciacao;
-                current = current->next;
-            }
-            
-            cout << "----------------------------------------------------------------\n";
-            cout << "TOTAL | Valor original: R$" << total_original 
-                 << " | Depreciação total: R$" << total_depreciado
-                 << " | Valor atual total: R$" << (total_original - total_depreciado) << "\n";
-        });
-    }
-
-    // Atualiza o status de obsolescência dos equipamentos
-    void atualizar_status_obsoleto(const Data& hoje) {
-        Node* current = inventario.get_head();
-        while (current) {
-            int anos = hoje.ano - current->data.dataCompra.ano;
-            if (hoje.mes < current->data.dataCompra.mes || 
-                (hoje.mes == current->data.dataCompra.mes && hoje.dia < current->data.dataCompra.dia)) {
-                anos--;
-            }
-            current->data.obsoleto = (anos >= current->data.vidaUtilAnos);
-            current = current->next;
+void sistema_identificar_obsoletos(SistemaInventario* sistema, const Data* hoje) {
+    sistema_atualizar_status_obsoleto(sistema, hoje); // Garante que o status de obsoleto está atualizado
+    char* hojeStr = data_to_string(hoje);
+    printf("=== EQUIPAMENTOS OBSOLETOS (Data base: %s) ===\n", hojeStr ? hojeStr : "ERRO");
+    if (hojeStr) free(hojeStr);
+    
+    int contador = 0;
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        if (current->data.obsoleto) {
+            char* dataCompraStr = data_to_string(&current->data.dataCompra);
+            printf("ID: %d | %s | Compra: %s | Vida útil: %d anos\n",
+                   current->data.id, current->data.nome, 
+                   dataCompraStr ? dataCompraStr : "ERRO", 
+                   current->data.vidaUtilAnos);
+            if (dataCompraStr) free(dataCompraStr);
+            contador++;
         }
+        current = current->next;
     }
+    printf("Total de obsoletos: %d\n", contador);
+}
 
-    // Identifica e lista equipamentos obsoletos
-    void identificar_obsoletos(const Data& hoje) {
-        medir_tempo("Identificar Obsoletos", [&]() {
-            atualizar_status_obsoleto(hoje);
-            cout << "=== EQUIPAMENTOS OBSOLETOS (Data base: " << hoje.to_string() << ") ===\n";
-            int contador = 0;
-            Node* current = inventario.get_head();
-            while (current) {
-                if (current->data.obsoleto) {
-                    cout << "ID: " << current->data.id << " | " << current->data.nome 
-                         << " | Compra: " << current->data.dataCompra.to_string()
-                         << " | Vida útil: " << current->data.vidaUtilAnos << " anos\n";
-                    contador++;
-                }
-                current = current->next;
-            }
-            cout << "Total de obsoletos: " << contador << "\n";
-        });
+void sistema_relatorio_manutencao_pendente(SistemaInventario* sistema, const Data* hoje, int mesesLimite) {
+    char* hojeStr = data_to_string(hoje);
+    printf("=== EQUIPAMENTOS COM MANUTENÇÃO PENDENTE (> %d meses, Data base: %s) ===\n",
+           mesesLimite, hojeStr ? hojeStr : "ERRO");
+    if (hojeStr) free(hojeStr);
+    
+    int contador = 0;
+    Node* current = sistema->inventario.head;
+    while (current != NULL) {
+        // Calcula os meses desde a última manutenção
+        int mesesDesdeManutencao = (hoje->ano - current->data.ultimaManutencao.ano) * 12 + 
+                                   (hoje->mes - current->data.ultimaManutencao.mes);
+        if (hoje->dia < current->data.ultimaManutencao.dia) {
+            mesesDesdeManutencao--;
+        }
+        
+        if (mesesDesdeManutencao >= mesesLimite) {
+            char* ultimaManutencaoStr = data_to_string(&current->data.ultimaManutencao);
+            printf("ID: %d | %s | Última manutenção: %s | Meses sem manutenção: %d\n",
+                   current->data.id, current->data.nome, 
+                   ultimaManutencaoStr ? ultimaManutencaoStr : "ERRO", 
+                   mesesDesdeManutencao);
+            if (ultimaManutencaoStr) free(ultimaManutencaoStr);
+            contador++;
+        }
+        current = current->next;
     }
+    printf("Total com manutenção pendente: %d\n", contador);
+}
 
-    // Gera relatório de equipamentos com manutenção pendente
-    void relatorio_manutencao_pendente(const Data& hoje, int mesesLimite) {
-        medir_tempo("Relatório Manutenção Pendente", [&]() {
-            cout << "=== EQUIPAMENTOS COM MANUTENÇÃO PENDENTE (> " << mesesLimite 
-                 << " meses, Data base: " << hoje.to_string() << ") ===\n";
-            int contador = 0;
-            Node* current = inventario.get_head();
-            while (current) {
-                int mesesDesdeManutencao = (hoje.ano - current->data.ultimaManutencao.ano) * 12 + 
-                                          (hoje.mes - current->data.ultimaManutencao.mes);
-                if (hoje.dia < current->data.ultimaManutencao.dia) {
-                    mesesDesdeManutencao--;
-                }
-                
-                if (mesesDesdeManutencao >= mesesLimite) {
-                    cout << "ID: " << current->data.id << " | " << current->data.nome
-                         << " | Última manutenção: " << current->data.ultimaManutencao.to_string()
-                         << " | Meses sem manutenção: " << mesesDesdeManutencao << "\n";
-                    contador++;
-                }
-                current = current->next;
-            }
-            cout << "Total com manutenção pendente: " << contador << "\n";
-        });
-    }
-};
-
-// Função para selecionar o tipo de hardware no menu
 TipoHardware selecionar_tipo() {
-    cout << "\nSelecione o tipo de hardware:\n";
-    cout << "1 - Computador\n2 - Impressora\n3 - Servidor\n";
-    cout << "4 - Roteador\n5 - Switch\n6 - Outro\n";
-    cout << "Opção: ";
+    printf("\nSelecione o tipo de hardware:\n");
+    printf("1 - Computador\n2 - Impressora\n3 - Servidor\n");
+    printf("4 - Roteador\n5 - Switch\n6 - Outro\n");
+    printf("Opção: ");
     
     int op;
     while (true) {
-        cin >> op;
-        if (cin.fail() || op < 1 || op > 6) {
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            cout << "Opção inválida! Tente novamente (1-6): ";
+        // Verifica se a entrada é um número e está dentro do intervalo válido
+        if (scanf("%d", &op) != 1 || op < 1 || op > 6) {
+            limpar_buffer_entrada(); // Limpa o buffer em caso de entrada inválida
+            printf("Opção inválida! Tente novamente (1-6): ");
             continue;
         }
-        break;
+        break; // Sai do loop se a entrada for válida
     }
+    limpar_buffer_entrada(); // Limpa o restante da linha após o scanf
 
     switch(op) {
-        case 1: return TipoHardware::COMPUTADOR;
-        case 2: return TipoHardware::IMPRESSORA;
-        case 3: return TipoHardware::SERVIDOR;
-        case 4: return TipoHardware::ROTEADOR;
-        case 5: return TipoHardware::SWITCH;
-        default: return TipoHardware::OUTRO;
+        case 1: return COMPUTADOR;
+        case 2: return IMPRESSORA;
+        case 3: return SERVIDOR;
+        case 4: return ROTEADOR;
+        case 5: return SWITCH;
+        default: return OUTRO;
     }
 }
 
-// Função para ler uma data do usuário
-Data ler_data(const string& mensagem) {
-    Data d;
-    cout << mensagem << " (DD/MM/AAAA): ";
-    char sep;
+bool ler_data(const char* mensagem, Data* data) {
+    printf("%s (DD/MM/AAAA): ", mensagem);
+    char sep1, sep2; // Separadores para o formato da data
     while (true) {
-        cin >> d.dia >> sep >> d.mes >> sep >> d.ano;
-        if (cin.fail() || sep != '/' || d.dia < 1 || d.dia > 31 || 
-            d.mes < 1 || d.mes > 12 || d.ano < 1900) {
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            cout << "Data inválida! Use o formato DD/MM/AAAA: ";
+        // Verifica o formato da data e a validade dos valores
+        if (scanf("%d%c%d%c%d", &data->dia, &sep1, &data->mes, &sep2, &data->ano) != 5 || sep1 != '/' || sep2 != '/' || 
+            data->dia < 1 || data->dia > 31 || data->mes < 1 || data->mes > 12 || data->ano < 1900) {
+            limpar_buffer_entrada(); // Limpa o buffer em caso de entrada inválida
+            printf("Data inválida! Use o formato DD/MM/AAAA: ");
             continue;
         }
-        break;
+        break; // Sai do loop se a data for válida
     }
-    return d;
+    limpar_buffer_entrada(); // Limpa o restante da linha após o scanf
+    return true;
 }
 
-// Menu principal do sistema
+// Função para limpar o buffer de entrada (após scanf)
+void limpar_buffer_entrada() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) {}
+}
+
 void menu_principal() {
     SistemaInventario sistema;
-    Data hoje = obter_data_atual();  // Usando a nova função para obter data atual
-
-    cout << "\n=== SISTEMA DE INVENTÁRIO DE HARDWARE ===\n";
-    cout << "Data atual do sistema: " << hoje.to_string() << "\n";
+    sistema_init(&sistema); // Inicializa o sistema de inventário
+    Data hoje = obter_data_atual(); // Obtém a data atual
+    char* hojeStr = data_to_string(&hoje);
+    
+    printf("\n=== SISTEMA DE INVENTÁRIO DE HARDWARE ===\n");
+    printf("Data atual do sistema: %s\n", hojeStr ? hojeStr : "ERRO");
+    if (hojeStr) free(hojeStr); // Libera a string da data
 
     int opcao;
     do {
-        cout << "\n=== MENU PRINCIPAL ===\n";
-        cout << "1 - Cadastrar novo hardware\n";
-        cout << "2 - Registrar manutenção\n";
-        cout << "3 - Listar todos os equipamentos\n";
-        cout << "4 - Listar equipamentos por tipo\n";
-        cout << "5 - Listar equipamentos ordenados por data de compra\n";
-        cout << "6 - Listar equipamentos ordenados por data de manutenção\n";
-        cout << "7 - Mostrar análise de depreciação\n";
-        cout << "8 - Identificar equipamentos obsoletos\n";
-        cout << "9 - Relatório de manutenção pendente\n";
-        cout << "0 - Sair\n";
-        cout << "Opção: ";
+        printf("\n=== MENU PRINCIPAL ===\n");
+        printf("1 - Cadastrar novo hardware\n");
+        printf("2 - Registrar manutenção\n");
+        printf("3 - Listar todos os equipamentos\n");
+        printf("4 - Listar equipamentos por tipo\n");
+        printf("5 - Listar equipamentos ordenados por data de compra\n");
+        printf("6 - Listar equipamentos ordenados por data de manutenção\n");
+        printf("7 - Mostrar análise de depreciação\n");
+        printf("8 - Identificar equipamentos obsoletos\n");
+        printf("9 - Relatório de manutenção pendente\n");
+        printf("0 - Sair\n");
+        printf("Opção: ");
 
         while (true) {
-            cin >> opcao;
-            if (cin.fail() || opcao < 0 || opcao > 9) {
-                cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                cout << "Opção inválida! Tente novamente (0-9): ";
+            // Verifica se a entrada é um número e está dentro do intervalo válido
+            if (scanf("%d", &opcao) != 1 || opcao < 0 || opcao > 9) {
+                limpar_buffer_entrada(); // Limpa o buffer em caso de entrada inválida
+                printf("Opção inválida! Tente novamente (0-9): ");
                 continue;
             }
-            break;
+            break; // Sai do loop se a entrada for válida
         }
+        limpar_buffer_entrada(); // Limpa o restante da linha após o scanf
 
-        try {
-            switch(opcao) {
-                case 1: {
-                    string nome, fabricante;
-                    cout << "\n--- CADASTRO DE HARDWARE ---\n";
-                    cout << "Nome do equipamento: ";
-                    cin.ignore();
-                    getline(cin, nome);
-                    cout << "Fabricante: ";
-                    getline(cin, fabricante);
-                    TipoHardware tipo = selecionar_tipo();
-                    Data dataCompra = ler_data("Data de compra");
-                    
-                    double valor;
-                    cout << "Valor de compra (R$): ";
-                    while (!(cin >> valor) || valor <= 0) {
-                        cin.clear();
-                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                        cout << "Valor inválido! Digite um valor positivo: ";
-                    }
-                    
-                    int vidaUtil;
-                    cout << "Vida útil em anos: ";
-                    while (!(cin >> vidaUtil) || vidaUtil <= 0) {
-                        cin.clear();
-                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                        cout << "Valor inválido! Digite um número positivo: ";
-                    }
-                    
-                    sistema.cadastrar_hardware(nome, fabricante, tipo, dataCompra, valor, vidaUtil);
-                    break;
+        switch(opcao) {
+            case 1: {
+                char nome[100], fabricante[100];
+                printf("\n--- CADASTRO DE HARDWARE ---\n");
+                printf("Nome do equipamento: ");
+                fgets(nome, sizeof(nome), stdin); // Lê o nome com espaços
+                nome[strcspn(nome, "\n")] = '\0'; // Remove o '\n' lido por fgets
+                
+                printf("Fabricante: ");
+                fgets(fabricante, sizeof(fabricante), stdin); // Lê o fabricante com espaços
+                fabricante[strcspn(fabricante, "\n")] = '\0'; // Remove o '\n' lido por fgets
+                
+                TipoHardware tipo = selecionar_tipo(); // Pede para o usuário selecionar o tipo
+                Data dataCompra;
+                ler_data("Data de compra", &dataCompra); // Pede a data de compra
+                
+                double valor;
+                printf("Valor de compra (R$): ");
+                while (scanf("%lf", &valor) != 1 || valor <= 0) { // Validação do valor de compra
+                    limpar_buffer_entrada();
+                    printf("Valor inválido! Digite um valor positivo: ");
                 }
-                case 2: {
-                    cout << "\n--- REGISTRAR MANUTENÇÃO ---\n";
-                    int id;
-                    cout << "ID do equipamento: ";
-                    while (!(cin >> id) || id <= 0) {
-                        cin.clear();
-                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                        cout << "ID inválido! Digite um número positivo: ";
-                    }
-                    Data dataManutencao = ler_data("Data da manutenção");
-                    if (sistema.registrar_manutencao(id, dataManutencao)) {
-                        cout << "Manutenção registrada com sucesso!\n";
-                    } else {
-                        cout << "Equipamento não encontrado!\n";
-                    }
-                    break;
+                limpar_buffer_entrada();
+                
+                int vidaUtil;
+                printf("Vida útil em anos: ");
+                while (scanf("%d", &vidaUtil) != 1 || vidaUtil <= 0) { // Validação da vida útil
+                    limpar_buffer_entrada();
+                    printf("Valor inválido! Digite um número positivo: ");
                 }
-                case 3:
-                    sistema.listar_equipamentos();
-                    break;
-                case 4: {
-                    TipoHardware tipo = selecionar_tipo();
-                    sistema.listar_por_tipo(tipo);
-                    break;
-                }
-                case 5:
-                    sistema.listar_por_data_compra();
-                    break;
-                case 6:
-                    sistema.listar_por_data_manutencao();
-                    break;
-                case 7:
-                    sistema.mostrar_analise_depreciacao(hoje);
-                    break;
-                case 8:
-                    sistema.identificar_obsoletos(hoje);
-                    break;
-                case 9: {
-                    cout << "\n--- RELATÓRIO DE MANUTENÇÃO PENDENTE ---\n";
-                    int meses;
-                    cout << "Informe o limite de meses sem manutenção: ";
-                    while (!(cin >> meses) || meses <= 0) {
-                        cin.clear();
-                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                        cout << "Valor inválido! Digite um número positivo: ";
-                    }
-                    sistema.relatorio_manutencao_pendente(hoje, meses);
-                    break;
-                }
-                case 0:
-                    cout << "\nSalvando dados e saindo...\n";
-                    break;
+                limpar_buffer_entrada();
+                
+                // Cadastra o hardware no sistema
+                sistema_cadastrar_hardware(&sistema, nome, fabricante, tipo, &dataCompra, valor, vidaUtil);
+                break;
             }
-        } catch (const exception& e) {
-            cerr << "\nErro: " << e.what() << "\n";
+            case 2: {
+                printf("\n--- REGISTRAR MANUTENÇÃO ---\n");
+                int id;
+                printf("ID do equipamento: ");
+                while (scanf("%d", &id) != 1 || id <= 0) { // Validação do ID
+                    limpar_buffer_entrada();
+                    printf("ID inválido! Digite um número positivo: ");
+                }
+                limpar_buffer_entrada();
+                Data dataManutencao;
+                ler_data("Data da manutenção", &dataManutencao); // Pede a data da manutenção
+                if (sistema_registrar_manutencao(&sistema, id, &dataManutencao)) {
+                    printf("Manutenção registrada com sucesso!\n");
+                } else {
+                    printf("Equipamento não encontrado!\n");
+                }
+                break;
+            }
+            case 3:
+                sistema_listar_equipamentos(&sistema); // Lista todos os equipamentos
+                break;
+            case 4: {
+                TipoHardware tipo = selecionar_tipo(); // Pede o tipo para filtrar
+                sistema_listar_por_tipo(&sistema, tipo); // Lista por tipo
+                break;
+            }
+            case 5:
+                sistema_listar_por_data_compra(&sistema); // Lista ordenado por data de compra
+                break;
+            case 6:
+                sistema_listar_por_data_manutencao(&sistema); // Lista ordenado por data de manutenção
+                break;
+            case 7:
+                sistema_mostrar_analise_depreciacao(&sistema, &hoje); // Mostra análise de depreciação
+                break;
+            case 8:
+                sistema_identificar_obsoletos(&sistema, &hoje); // Identifica equipamentos obsoletos
+                break;
+            case 9: {
+                printf("\n--- RELATÓRIO DE MANUTENÇÃO PENDENTE ---\n");
+                int meses;
+                printf("Informe o limite de meses sem manutenção: ");
+                while (scanf("%d", &meses) != 1 || meses <= 0) { // Validação do limite de meses
+                    limpar_buffer_entrada();
+                    printf("Valor inválido! Digite um número positivo: ");
+                }
+                limpar_buffer_entrada();
+                sistema_relatorio_manutencao_pendente(&sistema, &hoje, meses); // Gera relatório de manutenção pendente
+                break;
+            }
+            case 0:
+                printf("\nSalvando dados e saindo...\n");
+                break;
         }
     } while (opcao != 0);
+    
+    sistema_destroy(&sistema); // Libera os recursos do sistema
 }
 
-// Função principal que inicia o sistema
 int main() {
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-
-    try {
-        menu_principal();
-    } catch (const exception& e) {
-        cerr << "\nErro fatal: " << e.what() << "\n";
-        return 1;
-    }
-    return 0;
+    // A função menu_principal() contém o loop principal do programa e a lógica
+    menu_principal(); 
+    return 0; // Retorna 0 para indicar execução bem-sucedida
 }
