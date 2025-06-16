@@ -3,9 +3,12 @@
 
 #include "data.h"
 #include "hardware.h"
+#include <stdbool.h>
 
+// Adicionando declarações das funções de comparação
 bool compare_data_compra(const Hardware* a, const Hardware* b);
 bool compare_data_manutencao(const Hardware* a, const Hardware* b);
+
 TipoHardware selecionar_tipo();
 bool ler_data(const char* mensagem, Data* data);
 void limpar_buffer_entrada();

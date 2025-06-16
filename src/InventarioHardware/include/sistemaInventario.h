@@ -2,17 +2,17 @@
 #define SISTEMA_INVENTARIO_H
 
 #include "linkedList.h"
+#include "repository.h"
+#include <stdbool.h>
 
 typedef struct {
     LinkedList inventario;
+    Repository* repositorio;  // Nome corrigido de 'repositorio'
     int proximoId;
-    const char* arquivoDados;
 } SistemaInventario;
 
-void sistema_init(SistemaInventario* sistema);
+void sistema_init(SistemaInventario* sistema, Repository* repo); 
 void sistema_destroy(SistemaInventario* sistema);
-void sistema_carregar_dados(SistemaInventario* sistema);
-void sistema_salvar_dados(SistemaInventario* sistema);
 bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, const char* fabricante, 
                                TipoHardware tipo, const Data* dataCompra, double valorCompra, 
                                int vidaUtilAnos);
