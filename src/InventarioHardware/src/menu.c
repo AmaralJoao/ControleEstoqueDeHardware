@@ -8,8 +8,11 @@
 #include <stdbool.h>
 
 void menu_principal(Repository* repo) {
+    Cronometro crono_total;
+    cronometro_iniciar(&crono_total);
+    
     SistemaInventario sistema;
-    sistema_init(&sistema, repo);  // Corrigido para passar o repositório
+    sistema_init(&sistema, repo); 
     
     Data hoje = obter_data_atual();
     char* hojeStr = data_to_string(&hoje);
@@ -35,7 +38,6 @@ void menu_principal(Repository* repo) {
         printf("0 - Sair\n");
         printf("Opção: ");
 
-        // Validação robusta da entrada
         if (scanf("%d", &opcao) != 1) {
             limpar_buffer_entrada();
             printf("Entrada inválida! Digite um número entre 0 e 9.\n");
@@ -43,12 +45,14 @@ void menu_principal(Repository* repo) {
         }
         limpar_buffer_entrada();
 
+        Cronometro crono_op;
+        cronometro_iniciar(&crono_op);
+        
         switch(opcao) {
             case 1: {
                 char nome[100], fabricante[100];
                 printf("\n--- CADASTRO DE HARDWARE ---\n");
                 
-                // Entrada do nome com validação
                 do {
                     printf("Nome do equipamento: ");
                     if (fgets(nome, sizeof(nome), stdin) == NULL) {
@@ -58,7 +62,6 @@ void menu_principal(Repository* repo) {
                     nome[strcspn(nome, "\n")] = '\0';
                 } while (strlen(nome) == 0);
                 
-                // Entrada do fabricante com validação
                 do {
                     printf("Fabricante: ");
                     if (fgets(fabricante, sizeof(fabricante), stdin) == NULL) {
@@ -71,12 +74,10 @@ void menu_principal(Repository* repo) {
                 TipoHardware tipo = selecionar_tipo();
                 Data dataCompra;
                 
-                // Validação da data de compra
                 while (!ler_data("Data de compra (DD/MM/AAAA)", &dataCompra)) {
                     printf("Data inválida! Tente novamente.\n");
                 }
                 
-                // Validação do valor de compra
                 double valor = 0;
                 do {
                     printf("Valor de compra (R$): ");
@@ -89,7 +90,6 @@ void menu_principal(Repository* repo) {
                     break;
                 } while (true);
                 
-                // Validação da vida útil
                 int vidaUtil = 0;
                 do {
                     printf("Vida útil em anos: ");
@@ -112,7 +112,6 @@ void menu_principal(Repository* repo) {
                 printf("\n--- REGISTRAR MANUTENÇÃO ---\n");
                 int id = 0;
                 
-                // Validação do ID
                 do {
                     printf("ID do equipamento: ");
                     if (scanf("%d", &id) != 1 || id <= 0) {
@@ -167,7 +166,6 @@ void menu_principal(Repository* repo) {
                 printf("\n--- RELATÓRIO DE MANUTENÇÃO PENDENTE ---\n");
                 int meses = 0;
                 
-                // Validação dos meses
                 do {
                     printf("Informe o limite de meses sem manutenção: ");
                     if (scanf("%d", &meses) != 1 || meses <= 0) {
@@ -192,7 +190,13 @@ void menu_principal(Repository* repo) {
                 printf("Opção inválida! Digite um número entre 0 e 9.\n");
                 break;
         }
+        
+        double tempo_op = cronometro_parar(&crono_op);
+        cronometro_imprimir("Operação do menu", tempo_op);
     }
     
     sistema_destroy(&sistema);
+    
+    double tempo_total = cronometro_parar(&crono_total);
+    cronometro_imprimir("Tempo total no menu", tempo_total);
 }

@@ -59,3 +59,16 @@ void limpar_buffer_entrada() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF) {}
 }
+
+void cronometro_iniciar(Cronometro* cronometro) {
+    cronometro->inicio = clock();
+}
+
+double cronometro_parar(Cronometro* cronometro) {
+    cronometro->fim = clock();
+    return ((double)(cronometro->fim - cronometro->inicio)) * 1000000 / CLOCKS_PER_SEC;
+}
+
+void cronometro_imprimir(const char* operacao, double tempo) {
+    printf("[TEMPO] %s: %.2f μs (%.2f ms)\n", operacao, tempo, tempo/1000);
+}

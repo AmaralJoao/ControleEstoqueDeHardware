@@ -6,6 +6,9 @@
 #include <stdbool.h>
 
 void sistema_init(SistemaInventario* sistema, Repository* repo) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+    
     linkedlist_init(&sistema->inventario);
     sistema->repositorio = repo;
     sistema->proximoId = 1;
@@ -21,12 +24,17 @@ void sistema_init(SistemaInventario* sistema, Repository* repo) {
         }
         current = current->next;
     }
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Inicialização do sistema", tempo);
 }
 
 void sistema_destroy(SistemaInventario* sistema) {
     if (sistema == NULL) return;
 
-    // Salva os dados antes de destruir
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema->repositorio != NULL && 
         sistema->repositorio->interface != NULL && 
         sistema->repositorio->interface->salvar != NULL) {
@@ -34,17 +42,21 @@ void sistema_destroy(SistemaInventario* sistema) {
     }
     
     linkedlist_clear(&sistema->inventario);
-    // Observação: O repositório não é destruído aqui - quem criou é responsável
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Destruição do sistema", tempo);
 }
 
 bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, const char* fabricante, 
                                TipoHardware tipo, const Data* dataCompra, double valorCompra, 
                                int vidaUtilAnos) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL || nome == NULL || fabricante == NULL || dataCompra == NULL) {
         return false;
     }
 
-    // Validações dos parâmetros
     if (strlen(nome) == 0 || strlen(fabricante) == 0) {
         fprintf(stderr, "Nome e fabricante não podem estar vazios.\n");
         return false;
@@ -55,7 +67,6 @@ bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, co
         return false;
     }
 
-    // Cria o novo hardware
     Hardware hw;
     hw.id = sistema->proximoId++;
     strncpy(hw.nome, nome, sizeof(hw.nome) - 1);
@@ -68,20 +79,16 @@ bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, co
     hw.dataCompra = *dataCompra;
     hw.valorCompra = valorCompra;
     hw.vidaUtilAnos = vidaUtilAnos;
-    hw.ultimaManutencao = *dataCompra; // Data de compra como última manutenção inicial
+    hw.ultimaManutencao = *dataCompra;
     hw.obsoleto = false;
 
-    // Adiciona na lista local
     linkedlist_push_back(&sistema->inventario, &hw);
     
-    // Persiste no repositório
     if (sistema->repositorio != NULL && 
         sistema->repositorio->interface != NULL && 
         sistema->repositorio->interface->adicionar != NULL) {
         if (!sistema->repositorio->interface->adicionar(sistema->repositorio->implementacao, &hw)) {
             fprintf(stderr, "Erro ao salvar no repositório\n");
-            // Remove da lista se não conseguiu salvar
-            // (implementação simplificada - poderia ser mais robusta)
             linkedlist_clear(&sistema->inventario);
             if (sistema->repositorio->interface->carregar) {
                 sistema->repositorio->interface->carregar(sistema->repositorio->implementacao, &sistema->inventario);
@@ -90,11 +97,17 @@ bool sistema_cadastrar_hardware(SistemaInventario* sistema, const char* nome, co
         }
     }
     
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Cadastro de hardware", tempo);
+    
     printf("Hardware cadastrado com ID: %d\n", hw.id);
     return true;
 }
 
 bool sistema_registrar_manutencao(SistemaInventario* sistema, int id, const Data* dataManutencao) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL || dataManutencao == NULL) return false;
 
     Node* current = sistema->inventario.head;
@@ -102,20 +115,31 @@ bool sistema_registrar_manutencao(SistemaInventario* sistema, int id, const Data
         if (current->data.id == id) {
             current->data.ultimaManutencao = *dataManutencao;
             
-            // Atualiza no repositório se existir a função de atualização
             if (sistema->repositorio != NULL && 
                 sistema->repositorio->interface != NULL && 
                 sistema->repositorio->interface->atualizar != NULL) {
-                return sistema->repositorio->interface->atualizar(sistema->repositorio->implementacao, &current->data);
+                bool resultado = sistema->repositorio->interface->atualizar(sistema->repositorio->implementacao, &current->data);
+                double tempo = cronometro_parar(&crono);
+                cronometro_imprimir("Registro de manutenção", tempo);
+                return resultado;
             }
+            
+            double tempo = cronometro_parar(&crono);
+            cronometro_imprimir("Registro de manutenção", tempo);
             return true;
         }
         current = current->next;
     }
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Registro de manutenção (falha)", tempo);
     return false;
 }
 
 void sistema_listar_equipamentos(SistemaInventario* sistema) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL) return;
 
     printf("=== LISTA DE EQUIPAMENTOS (%d) ===\n", sistema->inventario.size);
@@ -133,9 +157,15 @@ void sistema_listar_equipamentos(SistemaInventario* sistema) {
         }
         current = current->next;
     }
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Listagem de equipamentos", tempo);
 }
 
 void sistema_listar_por_tipo(SistemaInventario* sistema, TipoHardware tipo) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL) return;
 
     printf("=== EQUIPAMENTOS POR TIPO (%s) ===\n", tipo_to_string(tipo));
@@ -153,22 +183,26 @@ void sistema_listar_por_tipo(SistemaInventario* sistema, TipoHardware tipo) {
         current = current->next;
     }
     printf("Total encontrado: %d equipamentos\n", contador);
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Listagem por tipo", tempo);
 }
 
 void sistema_listar_por_data_compra(SistemaInventario* sistema) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL) return;
 
     LinkedList temp;
     linkedlist_init(&temp);
     
-    // Copia os equipamentos para uma lista temporária
     Node* current = sistema->inventario.head;
     while (current != NULL) {
         linkedlist_push_back(&temp, &current->data);
         current = current->next;
     }
     
-    // Ordena pela data de compra
     linkedlist_insertion_sort(&temp, compare_data_compra);
     
     printf("=== EQUIPAMENTOS ORDENADOS POR DATA DE COMPRA ===\n");
@@ -187,9 +221,15 @@ void sistema_listar_por_data_compra(SistemaInventario* sistema) {
     }
     
     linkedlist_clear(&temp);
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Listagem por data de compra", tempo);
 }
 
 void sistema_listar_por_data_manutencao(SistemaInventario* sistema) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL) return;
 
     LinkedList temp;
@@ -219,6 +259,9 @@ void sistema_listar_por_data_manutencao(SistemaInventario* sistema) {
     }
     
     linkedlist_clear(&temp);
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Listagem por data de manutenção", tempo);
 }
 
 double calcular_depreciacao(const Hardware* hw, const Data* hoje) {
@@ -236,6 +279,9 @@ double calcular_depreciacao(const Hardware* hw, const Data* hoje) {
 }
 
 void sistema_mostrar_analise_depreciacao(SistemaInventario* sistema, const Data* hoje) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL || hoje == NULL) return;
 
     char* hojeStr = data_to_string(hoje);
@@ -266,9 +312,15 @@ void sistema_mostrar_analise_depreciacao(SistemaInventario* sistema, const Data*
     printf("----------------------------------------------------------------\n");
     printf("TOTAL | Valor original: R$%.2f | Depreciação total: R$%.2f | Valor atual total: R$%.2f\n",
            total_original, total_depreciado, (total_original - total_depreciado));
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Análise de depreciação", tempo);
 }
 
 void sistema_atualizar_status_obsoleto(SistemaInventario* sistema, const Data* hoje) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL || hoje == NULL) return;
 
     Node* current = sistema->inventario.head;
@@ -281,9 +333,15 @@ void sistema_atualizar_status_obsoleto(SistemaInventario* sistema, const Data* h
         current->data.obsoleto = (anos >= current->data.vidaUtilAnos);
         current = current->next;
     }
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Atualização de status obsoleto", tempo);
 }
 
 void sistema_identificar_obsoletos(SistemaInventario* sistema, const Data* hoje) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL || hoje == NULL) return;
 
     sistema_atualizar_status_obsoleto(sistema, hoje);
@@ -306,9 +364,15 @@ void sistema_identificar_obsoletos(SistemaInventario* sistema, const Data* hoje)
         current = current->next;
     }
     printf("Total de obsoletos: %d\n", contador);
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Identificação de obsoletos", tempo);
 }
 
 void sistema_relatorio_manutencao_pendente(SistemaInventario* sistema, const Data* hoje, int mesesLimite) {
+    Cronometro crono;
+    cronometro_iniciar(&crono);
+
     if (sistema == NULL || hoje == NULL || mesesLimite <= 0) return;
 
     char* hojeStr = data_to_string(hoje);
@@ -337,4 +401,7 @@ void sistema_relatorio_manutencao_pendente(SistemaInventario* sistema, const Dat
         current = current->next;
     }
     printf("Total com manutenção pendente: %d\n", contador);
+    
+    double tempo = cronometro_parar(&crono);
+    cronometro_imprimir("Relatório de manutenção pendente", tempo);
 }
