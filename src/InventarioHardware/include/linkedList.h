@@ -22,4 +22,4 @@ int linkedlist_get_size(const LinkedList* list);
 void linkedlist_bubble_sort(LinkedList* list, bool (*compare)(const Hardware*, const Hardware*));
 void linkedlist_insertion_sort(LinkedList* list, bool (*compare)(const Hardware*, const Hardware*));
 
-#endif // LINKEDLIST_H
+#endif

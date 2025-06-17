@@ -20,4 +20,4 @@ void cronometro_iniciar(Cronometro* cronometro);
 double cronometro_parar(Cronometro* cronometro);
 void cronometro_imprimir(const char* operacao, double tempo);
 
-#endif // UTILS_H
+#endif 

@@ -7,7 +7,7 @@
 
 typedef struct {
     LinkedList inventario;
-    Repository* repositorio;  // Nome corrigido de 'repositorio'
+    Repository* repositorio; 
     int proximoId;
 } SistemaInventario;
 
@@ -27,4 +27,4 @@ void sistema_atualizar_status_obsoleto(SistemaInventario* sistema, const Data* h
 void sistema_identificar_obsoletos(SistemaInventario* sistema, const Data* hoje);
 void sistema_relatorio_manutencao_pendente(SistemaInventario* sistema, const Data* hoje, int mesesLimite);
 
-#endif // SISTEMA_INVENTARIO_H
+#endif 
